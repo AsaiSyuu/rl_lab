@@ -11,4 +11,11 @@ docker image with latest rl tools
 *****
 ### Usage
 docker run -it --runtime=nvidia wuzihang/rl_lab bash  
-xvfb-run -s "-screen 0 1400x900x24" bash  
+
+
+### Test
+RECEMMEND to use the code from https://github.com/pat-coady/trpo  
+git clone https://github.com/pat-coady/trpo  
+cd trpo/src  
+xvfb-run -s "-screen 0 1400x900x24" bash    
+python3 train.py Swimmer-v2 -n 2500 -b 5  
