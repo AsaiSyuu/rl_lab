@@ -64,4 +64,5 @@ RUN pip3 install -U 'mujoco-py<1.50.2,>=1.50.1'
 RUN pip3 install --upgrade --user tensorflow-gpu
 # install pytorch
 #RUN pip3 install torch torchvision
-
+# install sklearn
+RUN pip3 install -U scikit-learn
