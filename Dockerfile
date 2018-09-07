@@ -1,87 +1,63 @@
-FROM ikeyasu/opengl:cuda9.0-cudnn7-devel-ubuntu16.04
-MAINTAINER wuzihang <wuzihang@pku.edu.cn>
+FROM nvidia/cuda:9.0-cudnn7-runtime-ubuntu16.04
+MAINTAINER wuzihang 
 
-ENV DEBIAN_FRONTEND oninteractive
+# Expose ports for VNC, Visdom and IPython
+EXPOSE 5900 8097 8888
 
-############################################
-# Basic dependencies
-############################################
-RUN apt-get update --fix-missing && apt-get install -y \
-      python3-numpy python3-matplotlib python3-dev \
-      python3-opengl python3-pip \
-      cmake zlib1g-dev libjpeg-dev xvfb libav-tools \
-      xorg-dev libboost-all-dev libsdl2-dev swig \
-      git  wget\
-    && apt-get clean && rm -rf /var/cache/apt/archives/* /var/lib/apt/lists/*
+RUN apt-get update -q && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y \
+  apt-utils \
+  curl \
+  git \
+  wget \
+  unzip \
+  vim \
+  net-tools \
+  cmake \
+  libglew-dev \
+  libosmesa6-dev \
+  libgtk2.0-0 \
+  libav-tools \
+  x11vnc \
+  xorg-dev \
+  libglu1-mesa \
+  libgl1-mesa-dev \
+  xvfb \
+  libxinerama1 \
+  libgl1-mesa-glx \
+  libxcursor1 \
+  lxde-core \
+  lxterminal \
+  tightvncserver \
+  xpra \
+  tmux \
+  xserver-xorg-dev \
+  python-numpy \
+  python-scipy \
+  python-matplotlib \
+  ipython \
+  ipython-notebook \
+  python-pandas \
+  python3-pip
 
-############################################
-# Change the working directory
-############################################
-WORKDIR /opt
+RUN apt-get update -q &&   DEBIAN_FRONTEND=noninteractive apt-get install -y python-opencv
 
-############################################
-# OpenAI Gym and Keras
-# It seems that keras always use the module installed last. 
-# https://github.com/fchollet/keras/issues/6997
-############################################
-RUN pip3 install --upgrade pip
-RUN pip3 install h5py keras future chainer cupy 'gym[atari]' 'gym[box2d]' 'gym[classic_control]'
+# Install MuJoCo
+RUN mkdir -p /root/.mujoco && \
+  wget https://www.roboti.us/download/mjpro150_linux.zip -O mujoco.zip && \
+  unzip mujoco.zip -d /root/.mujoco && \
+  rm mujoco.zip
+COPY ./mjkey.txt /root/.mujoco/
+ENV LD_LIBRARY_PATH /root/.mujoco/mjpro150/bin:$LD_LIBRARY_PATH
 
-############################################
-# Roboschool
-############################################
-RUN apt-get update && apt-get install -y \
-      git cmake ffmpeg pkg-config \
-      qtbase5-dev libqt5opengl5-dev libassimp-dev \
-      libpython3.5-dev libboost-python-dev libtinyxml-dev \
-    && apt-get clean && rm -rf /var/cache/apt/archives/* /var/lib/apt/lists/* \
-    && git clone --depth 1 https://github.com/olegklimov/bullet3 -b roboschool_self_collision \
-    && git clone --depth 1 https://github.com/openai/roboschool
+RUN apt-get install -y python-numpy python-dev cmake zlib1g-dev libjpeg-dev xvfb libav-tools xorg-dev python-opengl libboost-all-dev libsdl2-dev swig
 
-ENV ROBOSCHOOL_PATH /opt/roboschool
+RUN curl -o /usr/local/bin/patchelf https://s3-us-west-2.amazonaws.com/openai-sci-artifacts/manual-builds/patchelf_0.9_amd64.elf \
+  && chmod +x /usr/local/bin/patchelf
 
-RUN mkdir -p /opt/bullet3/build \
-    && cd /opt/bullet3/build \
-    && cmake -DBUILD_SHARED_LIBS=ON -DUSE_DOUBLE_PRECISION=1 \
-       -DCMAKE_INSTALL_PREFIX:PATH=${ROBOSCHOOL_PATH}/roboschool/cpp-household/bullet_local_install \
-       -DBUILD_CPU_DEMOS=OFF -DBUILD_BULLET2_DEMOS=OFF \
-       -DBUILD_EXTRAS=OFF  -DBUILD_UNIT_TESTS=OFF \
-       -DBUILD_CLSOCKET=OFF -DBUILD_ENET=OFF \
-       -DBUILD_OPENGL3_DEMOS=OFF .. \
-    && make \
-    && make install \
-    && pip3 install -e ${ROBOSCHOOL_PATH} \
-    && ldconfig \
-    && make clean
-
-############################################
-# Deep Reinforcement Learning
-#    OpenAI Baselines
-#    Keras-RL
-#    ChainerRL
-############################################
-RUN pip3 install keras-rl chainerrl opencv-python
-
-# Need to remove mujoco dependency from baselines
-RUN git clone --depth 1 https://github.com/openai/baselines.git \
-    && sed --in-place 's/mujoco,//' baselines/setup.py \
-    && pip3 install -e baselines \
-    && pip3 install mpi4py cloudpickle
-
-############################################
-# Tensorflow (GPU)
-# If tensorflow and tensorflow-gpu are installed simultaneously,
-# keras selects tensorflow (CPU). So, I uninstall the cpu version,
-# and install the gpu version at the end.
-############################################
-RUN pip3 install tensorflow-gpu==1.5
-
-############################################
-# locate, less, lxterminal, and vim
-############################################
-RUN apt-get update && apt-get install -y mlocate less vim lxterminal mesa-utils\
-    && updatedb\
-    && apt-get clean && rm -rf /var/cache/apt/archives/* /var/lib/apt/lists/*
-
-ENV APP "lxterminal -e bash"
+RUN cd /root && mkdir .pip && cd .pip && echo "[global]\nindex-url = https://pypi.tuna.tsinghua.edu.cn/simple" > pip.conf
+RUN git clone https://github.com/openai/gym.git && cd gym && pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple -e .
+RUN pip3 install -U 'mujoco-py<1.50.2,>=1.50.1'
+RUN pip3 install --upgrade --user tensorflow-gpu
+#RUN pip3 install torch torchvision
 
