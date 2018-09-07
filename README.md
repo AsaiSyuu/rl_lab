@@ -9,5 +9,6 @@ docker image with latest rl tools
 * gym 
 
 *****
-###Usage
+### Usage
 docker run -it --runtime=nvidia wuzihang/rl_lab bash
+xvfb-run -s "-screen 0 1400x900x24" bash
